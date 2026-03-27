@@ -1,6 +1,8 @@
 # TinyStories Diffusion Language Model
 
-This repository contains a PyTorch implementation of a Diffusion Language Model trained on the TinyStories dataset. It is only about 10M parameters big.
+This repository contains a PyTorch implementation of a Diffusion Language Model trained on the TinyStories dataset. Size of the model ~10M parameters.
+
+![Autoregressive vs Diffusion Decoding Comparison](others/animation.gif)
 
 **Check out the live demo on Hugging Face Spaces:** [Tiny DiffLM Story Teller](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller)
 
@@ -67,7 +69,5 @@ The project dependencies are outlined within the notebook itself, but you will m
 ## Parallel Decoding: GPT (Autoregressive) vs Diffusion LM
 
 Below is a visual representation comparing standard autoregressive generation (GPT-style) against the parallel decoding method used in this diffusion language model.
-
-![Autoregressive vs Diffusion Decoding Comparison](others/animation.gif)
 
 Instead of strictly decoding the next token left-to-right, the diffusion generation algorithm progressively evaluates a fully masked block window and unmasks the tokens that yield a confidence score over a specified `confidence_threshold` iteratively until all variables within the context block are satisfied.
