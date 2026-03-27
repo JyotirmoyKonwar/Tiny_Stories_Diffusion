@@ -2,14 +2,19 @@
 
 This repository contains a PyTorch implementation of a diffusion-based language model trained on the TinyStories dataset. It uses a parallel decoding methodology via token masking and confidence-based sampling, similar to non-autoregressive language models.
 
-## Features
+**Check out the live demo on Hugging Face Spaces:** [Tiny DiffLM Story Teller](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller)
 
-- **Diffusion-style Token Generation:** Iterative decoding where the model predicts tokens over multiple steps instead of traditional autoregressive (left-to-right) generation.
-- **SwiGLU Activation:** Employs the SwiGLU variant in the MLP blocks (`F.silu(self.w1(x)) * self.w2(x)`), maintaining an effective 8/3 expansion ratio.
-- **Rotary Position Embeddings (RoPE):** Multi-Head Attention leverages rotary embeddings for relative positional encoding.
+**The model weights are availble [HERE](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true)**
+
+The outputs on HF Spaces isn't great because of the limited compute resources(using only CPU inferencing). You can try it out on Colab or locally on a GPU for better results. 
+
+## About
+
+- **Diffusion-style Token Generation:**  Iterative decoding where the model predicts tokens over multiple steps instead of traditional autoregressive (left-to-right) generation.
+- **SwiGLU Activation:** ⚡ Employs the SwiGLU variant in the MLP blocks (`F.silu(self.w1(x)) * self.w2(x)`), maintaining an effective 8/3 expansion ratio.
+- **Rotary Position Embeddings (RoPE):**  Multi-Head Attention leverages rotary embeddings for relative positional encoding.
 - **Custom Dataset Loading:** Trains on a local JSONL subset of TinyStories (`tinystories_46k.jsonl`).
 - **Weights & Biases Integration:** Fully instrumented with `wandb` for logging training losses, validation metrics, and performance.
-- **Built for Jupyter:** Provided as an easy-to-run Jupyter Notebook (`tinystories_diffusion.ipynb`).
 
 ## Requirements
 
