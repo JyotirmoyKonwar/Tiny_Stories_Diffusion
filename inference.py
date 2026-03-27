@@ -2,17 +2,17 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import tiktoken
-import gradio as gr
 import math
 import os
+import argparse
 
-# Hyperparameters
+# Hyperparameters (Must match trained model)
 block_size = 256
 n_embd = 384
 n_head = 6
 n_layer = 6
 head_dim = n_embd // n_head
-device = 'cpu'  # Hugging Face Spaces free tier uses CPU by default
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Tokenizer setup
 enc = tiktoken.get_encoding("gpt2")
@@ -25,17 +25,7 @@ def encode(s):
 def decode(l):
     return enc.decode([t for t in l if t != mask_token_id])
 
-def format_masked_text(l):
-    """Decodes properly but visually represents masked tokens so the user can see them."""
-    res = []
-    for t in l:
-        if t == mask_token_id:
-            res.append(" [MASK] ")
-        else:
-            res.append(enc.decode([t]))
-    return "".join(res)
-
-# Architecture Definition
+# Architecture Components (Kaggle/CPU compatible)
 def apply_rotary_emb(x, cos, sin):
     assert x.ndim == 4
     d = x.shape[3] // 2
@@ -60,13 +50,13 @@ class MultiHeadAttention(nn.Module):
         cos, sin = cos_sin
         q, k = apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin)
         
-        # Manual RMSNorm to ensure CPU compatibility without kernel backend errors
+        # Manual RMSNorm
         q = q * torch.rsqrt(q.pow(2).mean(-1, keepdim=True) + 1e-5)
         k = k * torch.rsqrt(k.pow(2).mean(-1, keepdim=True) + 1e-5)
         
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
         
-        # Manual attention to bypass SDPA scaling/Flash constraints
+        # Manual attention
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
         att = F.softmax(att, dim=-1)
         y = att @ v
@@ -129,36 +119,22 @@ class Model(nn.Module):
         x = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + 1e-5)
         return self.lm_head(x), None
 
-# Initialize Model and load weights
-model = Model().to(device)
-weights_path = "tinystories_diffusion.pt"
-
-if os.path.exists(weights_path):
-    print("Loading weights...")
-    model.load_state_dict(torch.load(weights_path, map_location=device))
-else:
-    print(f"Warning: {weights_path} not found. Running with uninitialized random parameters.")
-
-@torch.no_grad()
-def generate_diffusion(prompt, max_new_tokens=100, mode="Direct Output"):
-    prompt_tokens = encode(prompt)
+def generate_diffusion(model, prompt_tokens, max_new_tokens=100, temp=1.0):
     model.eval()
     prompt_len = len(prompt_tokens)
     all_tokens = prompt_tokens.copy()
-    temp = 1.0
     confidence_threshold = 0.95
     top_k = 3
 
     while len(all_tokens) - len(prompt_tokens) < max_new_tokens:
-        curr_prompt_len = len(all_tokens)
-        block_len = min(block_size - curr_prompt_len, len(prompt_tokens) + max_new_tokens - len(all_tokens))
+        block_len = min(block_size - prompt_len, len(prompt_tokens) + max_new_tokens - len(all_tokens))
         if block_len <= 0: break
         
         x = torch.full((1, block_size), mask_token_id, dtype=torch.long, device=device)
-        x[0, :curr_prompt_len] = torch.tensor(all_tokens[-curr_prompt_len:], device=device)
+        x[0, :prompt_len] = torch.tensor(all_tokens[-prompt_len:], device=device)
         
         masked = torch.zeros(1, block_size, dtype=torch.bool, device=device)
-        masked[0, curr_prompt_len : curr_prompt_len + block_len] = True
+        masked[0, prompt_len:prompt_len + block_len] = True
 
         while masked.any():
             logits, _ = model(x)
@@ -178,35 +154,35 @@ def generate_diffusion(prompt, max_new_tokens=100, mode="Direct Output"):
             x = torch.where(decode_mask, sampled_tokens, x)
             masked = masked & ~decode_mask
             
-            if mode == "Show Generation Process":
-                current_block = x[0, curr_prompt_len : curr_prompt_len + block_len].tolist()
-                yield format_masked_text(all_tokens + current_block)
-            
-        all_tokens.extend(x[0, curr_prompt_len : curr_prompt_len + block_len].tolist())
+        all_tokens.extend(x[0, prompt_len:prompt_len + block_len].tolist())
+        prompt_len = len(all_tokens) # Update prompt_len for sliding window but NOT the terminal condition check
         
-    full_output = decode(all_tokens)
-    yield full_output
+    return decode(all_tokens)
 
-def gradio_fn(prompt, display_mode, max_tokens):
-    for text in generate_diffusion(prompt, max_new_tokens=max_tokens, mode=display_mode):
-        yield text
+def main():
+    parser = argparse.ArgumentParser(description="TinyStories Diffusion LM Inference CLI")
+    parser.add_argument("prompt", type=str, help="First few words of the story as input")
+    parser.add_argument("--tokens", type=int, default=100, help="Maximum number of tokens to generate")
+    parser.add_argument("--weights", type=str, default="model/tinystories_diffusion.pt", help="Path to the model weights file")
+    parser.add_argument("--temp", type=float, default=1.0, help="Temperature for sampling")
 
-# Gradio Iterface
-with gr.Blocks(theme=gr.themes.Monochrome()) as demo:
-    gr.Markdown("# TinyStories Diffusion LM")
-    gr.Markdown("A non-autoregressive language model leveraging parallel block-decoding and SwiGLU networks.")
+    args = parser.parse_args()
+
+    # Load Model
+    model = Model().to(device)
+    if os.path.exists(args.weights):
+        model.load_state_dict(torch.load(args.weights, map_location=device))
+    else:
+        print(f"Error: Weights file '{args.weights}' not found.")
+        return
+
+    # Encode and Generate
+    prompt_tokens = encode(args.prompt)
+    output = generate_diffusion(model, prompt_tokens, max_new_tokens=args.tokens, temp=args.temp)
     
-    with gr.Row():
-        with gr.Column():
-            prompt_in = gr.Textbox(lines=2, placeholder="Once upon a time, there was a little girl who", label="Prompt (approx 10 words)")
-            mode = gr.Radio(["Direct Output", "Show Generation Process"], value="Direct Output", label="Display Mode")
-            max_tokens = gr.Slider(minimum=20, maximum=1000, value=100, step=1, label="Max Tokens")
-            generate_btn = gr.Button("Generate Story", variant='primary')
-        
-        with gr.Column():
-            output = gr.Textbox(lines=10, label="Output")
-            
-    generate_btn.click(fn=gradio_fn, inputs=[prompt_in, mode, max_tokens], outputs=output)
+    print("\n--- Generated Story ---")
+    print(output)
+    print("-----------------------\n")
 
-# Queue is required to handle python yielding / streaming iterations
-demo.queue().launch()
+if __name__ == "__main__":
+    main()

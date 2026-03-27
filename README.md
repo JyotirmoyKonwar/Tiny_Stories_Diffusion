@@ -1,20 +1,18 @@
 # TinyStories Diffusion Language Model
 
-This repository contains a PyTorch implementation of a diffusion-based language model trained on the TinyStories dataset. It uses a parallel decoding methodology via token masking and confidence-based sampling, similar to non-autoregressive language models.
+This repository contains a PyTorch implementation of a Diffusion Language Model trained on the TinyStories dataset. It is only about 10M parameters big.
 
 **Check out the live demo on Hugging Face Spaces:** [Tiny DiffLM Story Teller](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller)
 
-**The model weights are availble [HERE](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true)**
+> The outputs on HF Spaces isn't great because of the limited compute resources(using only CPU inferencing). You can try it out on Colab or locally on a GPU for better results. 
 
-The outputs on HF Spaces isn't great because of the limited compute resources(using only CPU inferencing). You can try it out on Colab or locally on a GPU for better results. 
+**The model weights are availble [HERE](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true)**
 
 ## About
 
 - **Diffusion-style Token Generation:**  Iterative decoding where the model predicts tokens over multiple steps instead of traditional autoregressive (left-to-right) generation.
 - **SwiGLU Activation:** ⚡ Employs the SwiGLU variant in the MLP blocks (`F.silu(self.w1(x)) * self.w2(x)`), maintaining an effective 8/3 expansion ratio.
 - **Rotary Position Embeddings (RoPE):**  Multi-Head Attention leverages rotary embeddings for relative positional encoding.
-- **Custom Dataset Loading:** Trains on a local JSONL subset of TinyStories (`tinystories_46k.jsonl`).
-- **Weights & Biases Integration:** Fully instrumented with `wandb` for logging training losses, validation metrics, and performance.
 
 ## Requirements
 
@@ -31,22 +29,33 @@ The project dependencies are outlined within the notebook itself, but you will m
 1. **Install dependencies:**  
    Open the notebook `tinystories_diffusion.ipynb`. The first cell contains the install commands necessary:
    ```bash
-   pip install datasets tiktoken torch wandb
+   pip install -r requirements.txt
    ```
 
 2. **Dataset Setup:**  
    Ensure your custom dataset `tinystories_46k.jsonl` is present in the root of the project directory alongside the notebook.
 
-3. **WandB Setup:**  
-   The notebook will prompt you to authenticate with Weights & Biases to track the training progress. Run `wandb login` with your unique API key.
+   Or
 
-4. **Training:**  
-   Run all subsequent cells in `tinystories_diffusion.ipynb`. The notebook will initialize the model, begin the training loop, print updates, and log them to W&B. The model weights are automatically saved to `tinystories_diffusion.pt` at the end of training.
+   You can download using the script 
+   ```bash
+   python Tinystories_data_download.py
+   ``` 
+   where it will download 46k stories from the 3M+ stories available in the dataset, you can manaully increase of decrese the number of stories by changing the `limit` variable in the script.
 
-5. **Interactive Inference:**  
-   Once the model is trained, open `inference.ipynb`. This dedicated notebook loads your saved model weights natively and provides an interactive prompt loop. You can input your custom prompt (e.g., 10 words):
-   > "Once upon a time, there was a little girl who"  
-   and see the generated tokens materialize through the masked-diffusion parallel decoding pipeline.
+3. **Training:**  
+   Run all subsequent cells in `tinystories_diffusion.ipynb` or  use the script
+   ```bash
+   python Tinystories_diffusion.py
+   ```   
+   The training will take around 1hr on a T4 GPU(that's what it took me for a dataset of 46k datapoints and 5k iterations with a batch size of 16(VRAM constraints))
+
+4. **Inferencing:**  
+   If you only want to perform inferencing, you can use the script
+   ```bash
+   mkdir -p model && wget -P model https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true
+   python inference.py "Once upon a time, there was a little girl who" --tokens 150
+   ```
 
 ## Model Architecture Details
 
