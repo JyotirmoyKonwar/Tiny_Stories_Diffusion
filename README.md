@@ -35,10 +35,13 @@ The project dependencies are outlined within the notebook itself, but you will m
 3. **WandB Setup:**  
    The notebook will prompt you to authenticate with Weights & Biases to track the training progress. Run `wandb login` with your unique API key.
 
-4. **Training and Inference:**  
-   Run all subsequent cells. The notebook will initialize the model, begin the training loop, print updates, and log them to W&B. Finally, the last cell provides an inference example taking a 10-word prompt:
+4. **Training:**  
+   Run all subsequent cells in `tinystories_diffusion.ipynb`. The notebook will initialize the model, begin the training loop, print updates, and log them to W&B. The model weights are automatically saved to `tinystories_diffusion.pt` at the end of training.
+
+5. **Interactive Inference:**  
+   Once the model is trained, open `inference.ipynb`. This dedicated notebook loads your saved model weights natively and provides an interactive prompt loop. You can input your custom prompt (e.g., 10 words):
    > "Once upon a time, there was a little girl who"  
-   and auto-completing it through the masked-diffusion parallel inference pipeline.
+   and see the generated tokens materialize through the masked-diffusion parallel decoding pipeline.
 
 ## Model Architecture Details
 
@@ -47,6 +50,10 @@ The project dependencies are outlined within the notebook itself, but you will m
 *   **Dimensions:** $384$ embedding size, $6$ attention heads, and $6$ transformer layers.
 *   **Loss Calculation:** Computed dynamically using Mean Cross-Entropy over randomly injected masked tokens.
 
-## Parallel Decoding
+## Parallel Decoding: GPT (Autoregressive) vs Diffusion LM
 
-Instead of decoding next tokens, the generation algorithm progressively evaluates a fully masked block window and unmasks the tokens that yield a confidence score over a specified `confidence_threshold` iteratively until all variables within the context block are satisfied.
+Below is a visual representation comparing standard autoregressive generation (GPT-style) against the parallel decoding method used in this diffusion language model.
+
+![Autoregressive vs Diffusion Decoding Comparison](others/animation.gif)
+
+Instead of strictly decoding the next token left-to-right, the diffusion generation algorithm progressively evaluates a fully masked block window and unmasks the tokens that yield a confidence score over a specified `confidence_threshold` iteratively until all variables within the context block are satisfied.
