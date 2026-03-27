@@ -12,7 +12,7 @@ n_embd = 384
 n_head = 6
 n_layer = 6
 head_dim = n_embd // n_head
-device = 'cpu'  # Hugging Face Spaces free tier uses CPU by default
+device = 'cpu'  
 
 # Tokenizer setup
 enc = tiktoken.get_encoding("gpt2")
@@ -35,7 +35,6 @@ def format_masked_text(l):
             res.append(enc.decode([t]))
     return "".join(res)
 
-# Architecture Definition
 def apply_rotary_emb(x, cos, sin):
     assert x.ndim == 4
     d = x.shape[3] // 2
@@ -60,13 +59,11 @@ class MultiHeadAttention(nn.Module):
         cos, sin = cos_sin
         q, k = apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin)
         
-        # Manual RMSNorm to ensure CPU compatibility without kernel backend errors
         q = q * torch.rsqrt(q.pow(2).mean(-1, keepdim=True) + 1e-5)
         k = k * torch.rsqrt(k.pow(2).mean(-1, keepdim=True) + 1e-5)
         
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
         
-        # Manual attention to bypass SDPA scaling/Flash constraints
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
         att = F.softmax(att, dim=-1)
         y = att @ v
@@ -129,7 +126,6 @@ class Model(nn.Module):
         x = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + 1e-5)
         return self.lm_head(x), None
 
-# Initialize Model and load weights
 model = Model().to(device)
 weights_path = "tinystories_diffusion.pt"
 
@@ -191,7 +187,7 @@ def gradio_fn(prompt, display_mode, max_tokens):
     for text in generate_diffusion(prompt, max_new_tokens=max_tokens, mode=display_mode):
         yield text
 
-# Gradio Iterface
+# Gradio
 with gr.Blocks(theme=gr.themes.Monochrome()) as demo:
     gr.Markdown("# TinyStories Diffusion LM")
     gr.Markdown("A non-autoregressive language model leveraging parallel block-decoding and SwiGLU networks.")
@@ -208,5 +204,4 @@ with gr.Blocks(theme=gr.themes.Monochrome()) as demo:
             
     generate_btn.click(fn=gradio_fn, inputs=[prompt_in, mode, max_tokens], outputs=output)
 
-# Queue is required to handle python yielding / streaming iterations
 demo.queue().launch()
