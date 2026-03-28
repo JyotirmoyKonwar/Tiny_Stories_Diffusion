@@ -8,7 +8,7 @@ This repository contains a PyTorch implementation of a Diffusion Language Model 
 
 > The outputs on HF Spaces isn't great because of the limited compute resources(using only CPU inferencing). You can try it out on Colab or locally on a GPU for better results. 
 
-**The model weights are availble [HERE](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true)**
+**The model weights are availble [HERE](https://huggingface.co/Jyo-K/Tiny_Diffusion_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true)**
 
 ## About
 
@@ -55,7 +55,7 @@ The project dependencies are outlined within the notebook itself, but you will m
 4. **Inferencing:**  
    If you only want to perform inferencing, you can use the script
    ```bash
-   mkdir -p model && wget -P model https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true
+   mkdir -p model && wget -P model https://huggingface.co/Jyo-K/Tiny_Diffusion_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true
    python inference.py "Once upon a time, there was a little girl who" --tokens 150
    ```
 
