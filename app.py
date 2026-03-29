@@ -107,12 +107,23 @@ class Block(nn.Module):
         self.mlp = MLP()
 
     def forward(self, x, cos_sin):
-        norm_x = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + 1e-5)
-        x = x + self.attn(norm_x, cos_sin)
+        B, T, C = x.size()
+        q = self.c_q(x).view(B, T, n_head, head_dim)
+        k = self.c_k(x).view(B, T, n_head, head_dim)
+        v = self.c_v(x).view(B, T, n_head, head_dim)
         
-        norm_x2 = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + 1e-5)
-        x = x + self.mlp(norm_x2)
-        return x
+        cos, sin = cos_sin
+        q, k = apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin)
+        
+        q = F.rms_norm(q, (q.size(-1),))
+        k = F.rms_norm(k, (k.size(-1),))
+        
+        q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
+        
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=False)
+        
+        y = y.transpose(1, 2).contiguous().view(B, T, -1)
+        return self.c_proj(y)
 
 class Model(nn.Module):
     def __init__(self):
