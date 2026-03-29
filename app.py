@@ -12,7 +12,8 @@ n_embd = 384
 n_head = 6
 n_layer = 6
 head_dim = n_embd // n_head
-device = 'cpu'  
+# device = 'cpu'  
+device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 
 # Tokenizer setup
 enc = tiktoken.get_encoding("gpt2")
@@ -25,15 +26,32 @@ def encode(s):
 def decode(l):
     return enc.decode([t for t in l if t != mask_token_id])
 
+# def format_masked_text(l):
+#     """Decodes properly but visually represents masked tokens so the user can see them."""
+#     res = []
+#     for t in l:
+#         if t == mask_token_id:
+#             res.append(" [MASK] ")
+#         else:
+#             res.append(enc.decode([t]))
+#     return "".join(res)
+
 def format_masked_text(l):
-    """Decodes properly but visually represents masked tokens so the user can see them."""
-    res = []
+    chunks = []
+    current_chunk = []
     for t in l:
         if t == mask_token_id:
-            res.append(" [MASK] ")
+            if current_chunk:
+                chunks.append(enc.decode(current_chunk))
+                current_chunk = []
+            chunks.append(" [MASK] ")
         else:
-            res.append(enc.decode([t]))
-    return "".join(res)
+            current_chunk.append(t)
+            
+    if current_chunk:
+        chunks.append(enc.decode(current_chunk))
+        
+    return "".join(chunks)
 
 def apply_rotary_emb(x, cos, sin):
     assert x.ndim == 4
