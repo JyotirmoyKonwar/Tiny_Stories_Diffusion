@@ -2,13 +2,17 @@ import json
 import os
 from datasets import load_dataset
 from huggingface_hub import login
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def download_tinystories(token=None, output_file="data/tinystories_full.jsonl"):
 
-    if token:
-        login(token=token)
-    elif "HF_TOKEN" in os.environ:
-        print("Using token from environment variables...")
+    hf_token = token or os.getenv("HF_TOKEN")
+    if hf_token:
+        print(f"Logging in with token...")
+        login(token=hf_token)
     else:
         print("Warning: No token provided. You may hit rate limits.")
 
