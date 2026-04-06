@@ -3,7 +3,7 @@ import os
 from datasets import load_dataset
 from huggingface_hub import login
 
-def download_tinystories_subset(token=None, output_file="tinystories_46k.jsonl", limit=46523):
+def download_tinystories_subset(token=None, output_file="tinystories_46k.jsonl", limit=2191919):
 
     if token:
         login(token=token)
