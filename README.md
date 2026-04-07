@@ -4,11 +4,11 @@ This repository contains a PyTorch implementation of a Diffusion Language Model 
 
 ![Autoregressive vs Diffusion Decoding Comparison](others/animation.gif)
 
-**Check out the live demo on Hugging Face Spaces:** [Tiny DiffLM Story Teller](https://huggingface.co/spaces/Jyo-K/Tiny_DiffLM_Story_Teller)
+**Check out the live demo on Hugging Face Spaces:** [Tiny DiffLM Story Teller](https://huggingface.co/spaces/Jyo-K/Tiny-Diffusion-Language-Model)
 
 > The outputs on HF Spaces isn't great because of the limited compute resources(using only CPU inferencing). You can try it out on Colab or locally on a GPU for better results. 
 
-**The model weights are availble [HERE](https://huggingface.co/Jyo-K/Tiny_Diffusion_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true)**
+**The model weights are availble HERE -> [Medium model](https://huggingface.co/spaces/Jyo-K/Tiny-Diffusion-Language-Model/resolve/main/tinystories_diffusion_med_dual.pt?download=true) & [Large model](https://huggingface.co/spaces/Jyo-K/Tiny-Diffusion-Language-Model/resolve/main/tinystories_diffusion_GPT2_dual.pt?download=true)**
 
 ## About
 
@@ -35,35 +35,38 @@ The project dependencies are outlined within the notebook itself, but you will m
    ```
 
 2. **Dataset Setup:**  
-   Ensure your custom dataset `tinystories_46k.jsonl` is present in the root of the project directory alongside the notebook.
+   Ensure your custom dataset `tinystories_46k.jsonl` or `tinystories_full.jsonl` is present in the root of the project directory alongside the notebook.
 
    Or
 
    You can download using the script 
    ```bash
-   python Tinystories_data_download.py
+   python scripts/Tinystories_data_download_all.py
    ``` 
-   where it will download 46k stories from the 3M+ stories available in the dataset, you can manaully increase of decrese the number of stories by changing the `limit` variable in the script.
+   
 
 3. **Training:**  
-   Run all subsequent cells in `tinystories_diffusion.ipynb` or  use the script
+   Run all subsequent cells in `tinystories-diffusion_gpt-2.ipynb` or  use the script
    ```bash
-   python Tinystories_diffusion.py
+   python scripts/Tinystories-diffusion-GPT-2.py
    ```   
-   The training will take around 1hr on a T4 GPU(that's what it took me for a dataset of 46k datapoints and 5k iterations with a batch size of 16(VRAM constraints))
+   The training will take around 4hr on 2x T4 GPU
 
 4. **Inferencing:**  
    If you only want to perform inferencing, you can use the script
    ```bash
-   mkdir -p model && wget -P model https://huggingface.co/Jyo-K/Tiny_Diffusion_Story_Teller/resolve/main/tinystories_diffusion.pt?download=true
-   python inference.py "Once upon a time, there was a little girl who" --tokens 150
+   mkdir -p model && wget -P model https://huggingface.co/spaces/Jyo-K/Tiny-Diffusion-Language-Model/resolve/main/tinystories_diffusion_GPT2_dual.pt?download=true
+   python3 scripts/inference_new.py \
+    --model gpt2 or medium \
+    --prompt "Once upon a time, there was a dog who loved" \
+    --max_new_tokens 150
    ```
 
 ## Model Architecture Details
 
 *   **Tokenizer:** TikToken (`gpt2` BPE encoding) with an extended vocabulary space adding a `[MASK]` token.
-*   **Context Window:** 256 tokens (`block_size`)
-*   **Dimensions:** $384$ embedding size, $6$ attention heads, and $6$ transformer layers.
+*   **Context Window:** 512 tokens (`block_size`)
+*   **Dimensions:** $768$ embedding size, $12$ attention heads, and $12$ transformer layers.
 *   **Loss Calculation:** Computed dynamically using Mean Cross-Entropy over randomly injected masked tokens.
 
 ## Parallel Decoding: GPT (Autoregressive) vs Diffusion LM
